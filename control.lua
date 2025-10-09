@@ -1,7 +1,7 @@
 local const = require("const")
 local change_group_gui = require("scripts.change_group_gui")
 local gui_lib = require("scripts.gui_lib")
-local space_platform_gui = require("scripts.space_platform_gui")
+require("scripts.space_platform_gui")
 
 script.on_init(function()
   ---@type { [uint32]: PlatformData }

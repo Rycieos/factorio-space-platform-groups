@@ -1,9 +1,10 @@
+local change_group_gui = require("scripts.change_group_gui")
 local const = require("const")
 local gui_lib = require("scripts.gui_lib")
 local platform_data = require("scripts.platform_data")
 local player_data = require("scripts.player_data")
 
-local space_platform_gui = {}
+space_platform_gui = {}
 
 local anchor = { gui = defines.relative_gui_type.space_platform_hub_gui, position = defines.relative_gui_position.top }
 
@@ -23,7 +24,7 @@ function space_platform_gui.destroy(player_index)
   if space_platform_gui.valid(guis) then
     guis.root.destroy()
   end
-  guis.root = nil
+  data.hub_guis = {}
 end
 
 ---@param event EventData.on_gui_click
@@ -32,7 +33,8 @@ local function on_edit_button_clicked(event)
   if player then
     local data = player_data(event.player_index)
     data.opened_hub = player.opened --[[@as LuaEntity]]
-    change_group_gui.build(player, data.hub_guis.group_label.caption, event.cursor_display_location)
+    local group = platform_data.get_group_of_platform(player.force.index, data.platform_index)
+    change_group_gui.build(player, event.cursor_display_location, group and group.name or nil)
   end
 end
 
@@ -155,7 +157,9 @@ function space_platform_gui.update(player, platform_index)
   local guis = player_data(player.index).hub_guis
   local group = platform_data.get_group_of_platform(player.force.index, platform_index)
   guis.group_label.caption = group and group.name or const.no_group
-  guis.group_count_label.caption = group and group:platform_count_string() or ""
+  guis.group_count_label.caption = group
+      and "[color=" .. const.group_count_color .. "][" .. group.platform_count .. "][/color]"
+    or ""
   guis.control_flow.visible = group ~= nil
   guis.group_flow.style.bottom_margin = group == nil and -8 or 0
 end
@@ -178,10 +182,9 @@ function space_platform_gui.on_gui_opened(event)
     return
   end
 
-  local guis = player_data(event.player_index).hub_guis
-  -- TODO remove this
-  space_platform_gui.destroy(event.player_index)
-  if not space_platform_gui.valid(guis) then
+  local data = player_data(event.player_index)
+  data.platform_index = space_platform.index
+  if not space_platform_gui.valid(data.hub_guis) then
     space_platform_gui.build(player)
   end
   space_platform_gui.update(player, space_platform.index)
@@ -203,6 +206,8 @@ function space_platform_gui.on_gui_closed(event)
     if player and player.opened == nil then
       player.opened = hub
     end
+  else
+    space_platform_gui.destroy(event.player_index)
   end
   player_data(event.player_index).opened_hub = nil
 end

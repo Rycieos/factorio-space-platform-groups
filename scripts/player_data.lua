@@ -4,6 +4,7 @@
 ---@field change_group_guis Guis
 ---@field hub_guis Guis
 ---@field opened_hub? LuaEntity
+---@field platform_index? uint32
 ---@field last_group? string
 
 -- Get the PlayerData storage table for the specified player.

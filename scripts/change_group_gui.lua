@@ -1,8 +1,9 @@
 local const = require("const")
+local gui_lib = require("scripts.gui_lib")
+local platform_data = require("scripts.platform_data")
 local player_data = require("scripts.player_data")
-local space_platform_gui = require("scripts.space_platform_gui")
 
-change_group_gui = {}
+local change_group_gui = {}
 
 -- Return if the GUI still exists.
 ---@param guis Guis
@@ -23,8 +24,7 @@ function change_group_gui.destroy(player_index)
   if guis.overlay and guis.overlay.valid then
     guis.overlay.destroy()
   end
-  guis.root = nil
-  guis.overlay = nil
+  data.change_group_guis = {}
 end
 
 -- Show or hide the search box.
@@ -52,6 +52,7 @@ function change_group_gui.on_focus_search(event)
   if change_group_gui.valid(guis) then
     if guis.search_box.visible then
       guis.search_box.select_all()
+      guis.search_box.focus()
     else
       toggle_search_box(guis)
     end
@@ -63,16 +64,80 @@ local function on_search_button_click(event)
   toggle_search_box(player_data(event.player_index).change_group_guis)
 end
 
----@param event EventData.on_gui_click
+---@param event EventData.on_gui_click | EventData.on_gui_confirmed
 local function on_close_button_click(event)
+  local data = player_data(event.player_index)
+  data.opened_hub = nil
+  -- In the "normal" case, closing this GUI happens when the Hub GUI closes (and
+  -- is then reopened immediately), so we don't need to update the Hub GUI as it
+  -- will be updated when it opens. But in this case it is not closed (hence the
+  -- clearing of the field above), so we need to manually update it.
+  local player = game.get_player(event.player_index)
+  if player then
+    space_platform_gui.update(player, data.platform_index)
+  end
   change_group_gui.destroy(event.player_index)
+end
+
+-- When recieved our custom confirming event.
+-- This happens on `E` press, and `space_platform_gui.on_gui_close()` will fire
+-- at the same time.
+-- This will also fire on `E` press when the icon selector is open, so don't
+-- close this GUI.
+---@param event EventData.CustomInputEvent | EventData.on_gui_click | EventData.on_gui_confirmed
+function change_group_gui.on_confirm_gui(event)
+  local data = player_data(event.player_index)
+  if change_group_gui.valid(data.change_group_guis) then
+    local player = game.get_player(event.player_index)
+    if player and data.platform_index then
+      local group_name = data.change_group_guis.group_name_box.text
+      if group_name and group_name ~= "" then
+        platform_data.add_platform_to_group(
+          player.force.index,
+          data.change_group_guis.group_name_box.text,
+          data.platform_index
+        )
+      else
+        platform_data.remove_platform(player.force.index, data.platform_index)
+      end
+    end
+  end
+end
+
+---@param event EventData.on_gui_click | EventData.on_gui_confirmed
+local function on_confirm(event)
+  change_group_gui.on_confirm_gui(event)
+  on_close_button_click(event)
+end
+
+---@param event EventData.on_gui_text_changed
+local function on_group_text_changed(event)
+  event.element.no_group_placeholder.visible = event.text == ""
+end
+
+---@param event EventData.on_gui_click
+local function on_list_item_click(event)
+  local guis = player_data(event.player_index).change_group_guis
+  local button = event.element
+  if button == guis.no_group_button then
+    guis.group_name_box.text = ""
+    guis.no_group_placeholder.visible = true
+  else
+    guis.group_name_box.text = button.caption --[[@as string]]
+    guis.no_group_placeholder.visible = false
+  end
+
+  for _, button in pairs(guis.groups_list.children) do
+    button.toggled = false
+  end
+  button.toggled = true
 end
 
 -- Build a popup GUI for selecting a group.
 ---@param player LuaPlayer
----@param selected_group LocalisedString
 ---@param cursor_location GuiLocation
-function change_group_gui.build(player, selected_group, cursor_location)
+---@param selected_group? string
+function change_group_gui.build(player, cursor_location, selected_group)
   change_group_gui.destroy(player.index)
 
   local data = player_data(player.index)
@@ -95,7 +160,8 @@ function change_group_gui.build(player, selected_group, cursor_location)
     type = "frame",
     name = script.mod_name .. "_change_group_root",
     alias = "root",
-    style = "inset_frame_container_frame",
+    direction = "vertical",
+    style = const.vertical_container_frame,
     style_mods = {
       minimal_height = 218,
       width = 400,
@@ -158,20 +224,104 @@ function change_group_gui.build(player, selected_group, cursor_location)
           },
         },
       },
+      {
+        type = "frame",
+        direction = "vertical",
+        style = "inside_deep_frame",
+        style_mods = {
+          vertically_stretchable = true,
+        },
+        children = {
+          {
+            type = "frame",
+            style = "subheader_frame",
+            children = {
+              {
+                type = "textfield",
+                name = "group_name_box",
+                style_mods = {
+                  horizontally_stretchable = true,
+                  maximal_width = 0,
+                },
+                icon_selector = true,
+                text = selected_group,
+                handlers = {
+                  [defines.events.on_gui_confirmed] = on_confirm,
+                  [defines.events.on_gui_text_changed] = on_group_text_changed,
+                },
+                children = {
+                  type = "label",
+                  name = "no_group_placeholder",
+                  style_mods = { font_color = { 0, 0, 0, 0.4 } },
+                  caption = const.no_group,
+                  ignored_by_interaction = true,
+                  visible = selected_group == nil,
+                },
+              },
+              {
+                type = "sprite-button",
+                name = "confirm_button",
+                style = "item_and_count_select_confirm",
+                sprite = "utility/confirm_slot",
+                handlers = {
+                  [defines.events.on_gui_click] = on_confirm,
+                },
+              },
+            },
+          },
+          {
+            type = "scroll-pane",
+            name = "groups_list",
+            direction = "vertical",
+            style = const.scroll_pane,
+            children = {
+              type = "button",
+              name = "no_group_button",
+              style = "list_box_item",
+              style_mods = {
+                horizontally_stretchable = true,
+              },
+              caption = const.no_group,
+              handlers = {
+                [defines.events.on_gui_click] = on_list_item_click,
+              },
+            },
+          },
+        },
+      },
     },
   }, data.change_group_guis)
-end
 
--- When recieved our custom confirming event.
--- This happens on `E` press, and `space_platform_gui.on_gui_close()` will fire
--- at the same time.
----@param event EventData.CustomInputEvent
-function change_group_gui.on_confirm_gui(event)
-  guis = player_data(event.player_index).change_group_guis
-  if change_group_gui.valid(guis) then
-    -- TODO save something
-    log("saved group")
-    change_group_gui.destroy(event.player_index)
+  data.change_group_guis.group_name_box.focus()
+
+  local groups_list_box = data.change_group_guis.groups_list
+  local groups = platform_data.get_groups(player.force.index)
+  for i, group in pairs(groups) do
+    gui_lib.add(groups_list_box, {
+      type = "button",
+      name = "group_button_" .. i,
+      style = "list_box_item",
+      style_mods = {
+        horizontally_stretchable = true,
+      },
+      caption = group.name,
+      handlers = {
+        [defines.events.on_gui_click] = on_list_item_click,
+      },
+      children = {
+        type = "flow",
+        direction = "vertical",
+        style_mods = {
+          natural_width = 354,
+          horizontal_align = "right",
+        },
+        ignored_by_interaction = true,
+        children = {
+          type = "label",
+          caption = tostring(group.platform_count),
+        },
+      },
+    })
   end
 end
 

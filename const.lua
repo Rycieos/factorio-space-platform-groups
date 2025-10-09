@@ -8,5 +8,8 @@ return {
   focus_search_id = mod_name .. "_focus_search",
   confirm_gui_id = mod_name .. "_confirm_gui",
 
+  vertical_container_frame = mod_name .. "_no_spacing_vertical_container_frame",
+  scroll_pane = mod_name .. "_no_spacing_scroll_pane",
+
   no_group = { "gui-train.empty-train-group" },
 }

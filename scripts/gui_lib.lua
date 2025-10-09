@@ -33,7 +33,7 @@ local handler_tag_key = "__" .. script.mod_name .. "_handlers"
 ---@type table<string, GuiElemHandler>
 local handlers_lookup = {}
 
-gui_lib = {}
+local gui_lib = {}
 
 -- Add a new child or children to the given GUI element.
 ---@param parent LuaGuiElement The parent GUI element.
