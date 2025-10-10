@@ -1,6 +1,7 @@
 local const = require("const")
 local change_group_gui = require("scripts.change_group_gui")
 local gui_lib = require("scripts.gui_lib")
+local platform_data = require("scripts.platform_data")
 require("scripts.space_platform_gui")
 
 script.on_init(function()
@@ -26,5 +27,7 @@ script.on_event(defines.events.on_gui_closed, space_platform_gui.on_gui_closed)
 
 script.on_event(const.confirm_gui_id, change_group_gui.on_confirm_gui)
 script.on_event(const.focus_search_id, change_group_gui.on_focus_search)
+
+script.on_event(defines.events.on_space_platform_changed_state, platform_data.on_space_platform_changed_state)
 
 gui_lib.handle_events()

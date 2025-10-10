@@ -242,6 +242,8 @@ function space_platform_gui.update(player_index, platform_index)
     local unload_value = group.unload_limit or 1
     guis.unloading_slider.slider_value = unload_value
     guis.unloading_text.text = tostring(unload_value)
+
+    platform_data.manage_logistics_providers(player.force.index, group)
   end
 end
 
