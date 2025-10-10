@@ -277,20 +277,26 @@ end
 -- platform entity GUI, which we do not want. Instead, leave the hub GUI as
 -- opened. The downside is that closing with E or Esc closes the hub GUI
 -- instead, so this reopenes it right after it closes.
+-- Of course, this also fires on a normal close as well.
 ---@param event EventData.on_gui_closed
 function space_platform_gui.on_gui_closed(event)
-  local hub = player_data(event.player_index).opened_hub
-  if hub and event.entity and event.entity == hub then
-    change_group_gui.destroy(event.player_index)
-    local player = game.get_player(event.player_index)
-    -- If anything else was opened, we don't want to override that.
-    if player and player.opened == nil then
-      player.opened = hub
+  local entity = event.entity
+  if entity and entity.type == "space-platform-hub" and entity.surface.platform then
+    local hub = player_data(event.player_index).opened_hub
+    if hub and entity == hub then
+      change_group_gui.destroy(event.player_index)
+      local player = game.get_player(event.player_index)
+      -- If anything else was opened, we don't want to override that.
+      if player and player.opened == nil then
+        player.opened = hub
+      end
+    else
+      space_platform_gui.destroy(event.player_index)
     end
-  else
-    space_platform_gui.destroy(event.player_index)
+    player_data(event.player_index).opened_hub = nil
+
+    platform_data.sync_schedule_from(entity.surface.platform)
   end
-  player_data(event.player_index).opened_hub = nil
 end
 
 return space_platform_gui

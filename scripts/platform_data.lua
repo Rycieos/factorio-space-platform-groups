@@ -119,6 +119,15 @@ function platform_data.add_platform_to_group(force_index, group_name, platform_i
   platforms[platform_index] = group
   group.platforms[platform_index] = game.forces[force_index].platforms[platform_index]
   group.platform_count = group.platform_count + 1
+
+  local force = game.forces[force_index]
+  if force then
+    local platform = force.platforms[platform_index]
+    if platform then
+      platform_data.sync_schedule_to(platform)
+    end
+  end
+
   -- TODO: fix orbit limits
   return group
 end
@@ -130,6 +139,78 @@ end
 ---@nodiscard
 function platform_data.get_group_of_platform(force_index, platform_index)
   return raw(force_index).platforms[platform_index]
+end
+
+-- Do our best to copy schedules.
+-- Any temporary stop in the source is simply skipped.
+-- Any temporary stop in the dest is also skipped, in the sense that it is not
+-- overwritten, and we act like it isn't there, targeting the next stop for
+-- overwritting.
+-- Sure would be nice if Wube would let the group functionality work for platforms.
+---@param from_platform LuaSpacePlatform
+---@param to_platforms LuaSpacePlatform[]
+function platform_data.sync_schedules(from_platform, to_platforms)
+  local from_schedule = from_platform.get_schedule()
+  local from_record_count = from_schedule.get_record_count()
+
+  for _, to_platform in pairs(to_platforms) do
+    if from_platform.index ~= to_platform.index then
+      local to_schedule = to_platform.get_schedule()
+      local stopped = to_platform.paused
+      local active_index = to_schedule.current
+      local to_index = 1
+      for from_index = 1, from_record_count do
+        -- Get the schedule without any temporary stops.
+        if not from_schedule.get_record({ schedule_index = from_index }).temporary then
+          local to_record = to_schedule.get_record({ schedule_index = to_index })
+          while to_record and to_record.temporary do
+            to_index = to_index + 1
+            to_record = to_schedule.get_record({ schedule_index = to_index })
+          end
+          to_schedule.remove_record({ schedule_index = to_index })
+          to_schedule.copy_record(from_schedule, from_index, to_index)
+          if to_index == active_index then
+            -- Recover the previous active record.
+            to_schedule.go_to_station(to_index)
+            to_schedule.set_stopped(stopped)
+          end
+          to_index = to_index + 1
+        end
+      end
+      -- If there are still records in the dest, remove them.
+      -- Need to do it in reverse because removing the first would shift the
+      -- others down.
+      for index = to_schedule.get_record_count(), to_index, -1 do
+        to_schedule.remove_record({ schedule_index = index })
+      end
+      to_schedule.set_interrupts(from_schedule.get_interrupts())
+    end
+  end
+end
+
+---@param from_platform LuaSpacePlatform
+function platform_data.sync_schedule_from(from_platform)
+  local group = platform_data.get_group_of_platform(from_platform.force.index, from_platform.index)
+  if group then
+    platform_data.sync_schedules(from_platform, group.platforms)
+  end
+end
+
+---@param to_platform LuaSpacePlatform
+function platform_data.sync_schedule_to(to_platform)
+  local group = platform_data.get_group_of_platform(to_platform.force.index, to_platform.index)
+  if group and group.platform_count > 1 then
+    -- Find some other platform that isn't the one we are copying to.
+    ---@type LuaSpacePlatform
+    local from_platform
+    for _, platform in pairs(group.platforms) do
+      if platform.index ~= to_platform.index then
+        from_platform = platform
+        break
+      end
+    end
+    platform_data.sync_schedules(from_platform, { to_platform })
+  end
 end
 
 return platform_data
