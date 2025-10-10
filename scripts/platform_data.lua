@@ -146,6 +146,9 @@ end
 -- Any temporary stop in the dest is also skipped, in the sense that it is not
 -- overwritten, and we act like it isn't there, targeting the next stop for
 -- overwritting.
+-- Reordering is quite brittle. Train groups have the luxury of getting events
+-- popped for every little change, and can catch a reorder. Without that, we
+-- just have to guess based on destination.
 -- Sure would be nice if Wube would let the group functionality work for platforms.
 ---@param from_platform LuaSpacePlatform
 ---@param to_platforms LuaSpacePlatform[]
@@ -158,10 +161,15 @@ function platform_data.sync_schedules(from_platform, to_platforms)
       local to_schedule = to_platform.get_schedule()
       local stopped = to_platform.paused
       local active_index = to_schedule.current
+      local active_record = to_schedule.get_record({ schedule_index = active_index }) or {}
+      local active_destination = not active_record.temporary and active_record.station or nil
+      local best_ahead_index, best_behind_index
+
       local to_index = 1
       for from_index = 1, from_record_count do
         -- Get the schedule without any temporary stops.
-        if not from_schedule.get_record({ schedule_index = from_index }).temporary then
+        local from_record = from_schedule.get_record({ schedule_index = from_index })
+        if from_record and not from_record.temporary then
           local to_record = to_schedule.get_record({ schedule_index = to_index })
           while to_record and to_record.temporary do
             to_index = to_index + 1
@@ -169,11 +177,15 @@ function platform_data.sync_schedules(from_platform, to_platforms)
           end
           to_schedule.remove_record({ schedule_index = to_index })
           to_schedule.copy_record(from_schedule, from_index, to_index)
-          if to_index == active_index then
-            -- Recover the previous active record.
-            to_schedule.go_to_station(to_index)
-            to_schedule.set_stopped(stopped)
+
+          if active_destination and from_record.station == active_destination then
+            if to_index < active_index then
+              best_ahead_index = to_index
+            elseif not best_behind_index then
+              best_behind_index = to_index
+            end
           end
+
           to_index = to_index + 1
         end
       end
@@ -184,6 +196,21 @@ function platform_data.sync_schedules(from_platform, to_platforms)
         to_schedule.remove_record({ schedule_index = index })
       end
       to_schedule.set_interrupts(from_schedule.get_interrupts())
+
+      -- Recover the previous active record (best guess).
+      if active_destination then
+        local best_index = active_index
+        if best_ahead_index and best_behind_index then
+          best_index = (active_index - best_ahead_index < best_behind_index - active_index) and best_ahead_index
+            or best_behind_index
+        elseif best_ahead_index then
+          best_index = best_ahead_index
+        elseif best_behind_index then
+          best_index = best_behind_index
+        end
+        to_schedule.go_to_station(best_index)
+        to_schedule.set_stopped(stopped)
+      end
     end
   end
 end
