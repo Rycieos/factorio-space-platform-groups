@@ -72,10 +72,7 @@ local function on_close_button_click(event)
   -- is then reopened immediately), so we don't need to update the Hub GUI as it
   -- will be updated when it opens. But in this case it is not closed (hence the
   -- clearing of the field above), so we need to manually update it.
-  local player = game.get_player(event.player_index)
-  if player then
-    space_platform_gui.update(player, data.platform_index)
-  end
+  space_platform_gui.update(event.player_index, data.platform_index)
   change_group_gui.destroy(event.player_index)
 end
 
