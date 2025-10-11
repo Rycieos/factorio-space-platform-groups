@@ -214,6 +214,16 @@ function space_platform_gui.update(player_index, platform_index)
   if not player then
     return
   end
+  local opened = player.opened
+  if
+    not opened
+    or not opened.object_name == "LuaEntity"
+    or not opened.surface.platform
+    or opened.surface.platform.index ~= platform_index
+  then
+    return
+  end
+
   local guis = player_data(player.index).hub_guis
   local group = platform_data.get_group_of_platform(player.force.index, platform_index)
   if group == nil then
@@ -243,7 +253,7 @@ function space_platform_gui.update(player_index, platform_index)
     guis.unloading_slider.slider_value = unload_value
     guis.unloading_text.text = tostring(unload_value)
 
-    platform_data.manage_logistics_providers(player.force.index, group)
+    platform_data.manage_logistics_providers(group)
   end
 end
 
