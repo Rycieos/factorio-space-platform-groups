@@ -29,5 +29,6 @@ script.on_event(const.confirm_gui_id, change_group_gui.on_confirm_gui)
 script.on_event(const.focus_search_id, change_group_gui.on_focus_search)
 
 script.on_event(defines.events.on_space_platform_changed_state, platform_data.on_space_platform_changed_state)
+script.on_event(defines.events.on_pre_surface_deleted, platform_data.on_pre_surface_deleted)
 
 gui_lib.handle_events()

@@ -268,4 +268,13 @@ function platform_data.on_space_platform_changed_state(event)
   end
 end
 
+-- Handle a space platform being deleted.
+---@param event EventData.on_pre_surface_deleted
+function platform_data.on_pre_surface_deleted(event)
+  local surface = game.surfaces[event.surface_index]
+  if surface and surface.platform then
+    platform_data.remove_platform(surface.platform.force.index, surface.platform.index)
+  end
+end
+
 return platform_data
