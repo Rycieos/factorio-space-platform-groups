@@ -128,12 +128,11 @@ function schedule.sync_schedules(from_platform, to_platforms)
   for _, to_platform in pairs(to_platforms) do
     if from_platform.index ~= to_platform.index then
       local to_schedule = to_platform.get_schedule()
-      local stopped = to_platform.paused
 
       -- Find the record to set as current.
       local best_index = get_best_match_for_current(from_schedule, to_schedule)
-      if best_index and best_index > to_schedule.current then
-        -- The current record will be deleted before the record we will set as
+      if best_index then
+        -- The current record might be deleted before the record we will set as
         -- current is added. This makes the platform start moving toward the
         -- next record for a very short time. To fix this, simply move the
         -- current record back to where we will be putting the new current
@@ -155,15 +154,19 @@ function schedule.sync_schedules(from_platform, to_platforms)
           end
           to_schedule.copy_record(from_schedule, from_index, to_index)
           if best_index and from_index == best_index then
-            -- Recover the previous active record (best guess).
-            to_schedule.go_to_station(to_index)
-            to_schedule.set_stopped(stopped)
+            -- set the best guess record as active. If we manually set the
+            -- pasted record as active, it causes a state change event, even
+            -- though the platform does not go anywhere. If instead we drop down
+            -- to it by removing the active record, it seems no event is fired.
+            to_schedule.drag_record(to_index + 1, to_index)
+            to_schedule.remove_record({ schedule_index = to_index })
+          else
+            -- If there is no guess, the following line removing the active record
+            -- will make the next record the active one. Which will cascade to the
+            -- end, making the first record active. I think that is what train
+            -- schedules do, so it's not so bad.
+            to_schedule.remove_record({ schedule_index = to_index + 1 })
           end
-          -- If there is no guess, the following line removing the active record
-          -- will make the next record the active one. Which will cascade to the
-          -- end, making the first record active. I think that is what train
-          -- schedules do, so it's not so bad.
-          to_schedule.remove_record({ schedule_index = to_index + 1 })
 
           to_index = to_index + 1
         end
