@@ -181,7 +181,7 @@ function change_group_gui.build(player, cursor_location, selected_group)
               top_margin = -3,
               maximal_width = 300,
             },
-            caption = { script.mod_name .. ".change-group" },
+            caption = { script.mod_name .. "-name.change-group" },
             drag_target = "root",
           },
           {

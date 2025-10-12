@@ -206,6 +206,28 @@ function platform_data.manage_logistics_providers(group)
   end
 end
 
+---@param group PlatformGroup
+---@param platform_index uint32
+---@param type ("load_limit")|("unload_limit")
+---@return string
+function platform_data.get_logistic_status(group, platform_index, type)
+  if group[type] then
+    local platform_location = group.platforms[platform_index]
+    if platform_location == "" then
+      return "blue"
+    end
+    local location_queue = platform_data.get_location_queue(group, platform_location)
+    if queue.size(location_queue) <= group[type] then
+      return "working"
+    elseif queue.find(location_queue, platform_index) <= group[type] then
+      return "yellow"
+    else
+      return "not_working"
+    end
+  end
+  return "inactive"
+end
+
 ---@param from_platform LuaSpacePlatform
 function platform_data.sync_schedule_from(from_platform)
   local group = platform_data.get_group_of_platform(from_platform.force.index, from_platform.index)

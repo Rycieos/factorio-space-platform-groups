@@ -105,19 +105,33 @@ function space_platform_gui.build(player)
             top_margin = -8,
           },
           children = {
-            { type = "label", name = "group_label", style = "train_stop_subheader", style_mods = { left_padding = 0 } },
+            {
+              type = "label",
+              name = "group_label",
+              style = "train_stop_subheader",
+              style_mods = { left_padding = 0 },
+              tooltip = {
+                "?",
+                { script.mod_name .. "-description.group-note-tooltip" },
+                { "gui-train.train-group-note-tooltip" },
+              },
+            },
             {
               type = "label",
               name = "group_count_label",
               style = "caption_label",
-              caption = { "?", { script.mod_name .. ".platforms-in-this-group" }, { "gui-train.trains-in-this-group" } },
+              tooltip = {
+                "?",
+                { script.mod_name .. "-name.platforms-in-group" },
+                { "gui-train.trains-in-this-group" },
+              },
             },
             {
               type = "sprite-button",
               name = "change_group_button",
               style = "mini_button_aligned_to_text_vertically_when_centered",
               sprite = "utility/rename_icon",
-              tooltip = { "?", { script.mod_name .. ".change-group" }, { "gui-rename.rename-train" } },
+              tooltip = { "?", { script.mod_name .. "-name.change-group" }, { "gui-rename.rename-train" } },
               handlers = {
                 [defines.events.on_gui_click] = on_edit_button_clicked,
               },
@@ -130,12 +144,32 @@ function space_platform_gui.build(player)
           direction = "vertical",
           children = {
             {
-              type = "checkbox",
-              name = "loading_checkbox",
-              state = false,
-              caption = "Limit loading TODO",
-              handlers = {
-                [defines.events.on_gui_checked_state_changed] = on_group_parameters_changed,
+              type = "flow",
+              style = "player_input_horizontal_flow",
+              children = {
+                {
+                  type = "checkbox",
+                  name = "loading_checkbox",
+                  state = false,
+                  caption = { script.mod_name .. "-name.limit-requesting" },
+                  tooltip = {
+                    script.mod_name .. "-description.limit",
+                    { script.mod_name .. "-description.limit-requesting" },
+                  },
+                  handlers = {
+                    [defines.events.on_gui_checked_state_changed] = on_group_parameters_changed,
+                  },
+                },
+                {
+                  type = "empty-widget",
+                  style_mods = { horizontally_stretchable = true },
+                },
+                {
+                  type = "sprite",
+                  name = "loading_status",
+                  style = "status_image",
+                  resize_to_sprite = false,
+                },
               },
             },
             {
@@ -165,12 +199,32 @@ function space_platform_gui.build(player)
               },
             },
             {
-              type = "checkbox",
-              name = "unloading_checkbox",
-              state = false,
-              caption = "Limit unloading TODO",
-              handlers = {
-                [defines.events.on_gui_checked_state_changed] = on_group_parameters_changed,
+              type = "flow",
+              style = "player_input_horizontal_flow",
+              children = {
+                {
+                  type = "checkbox",
+                  name = "unloading_checkbox",
+                  state = false,
+                  caption = { script.mod_name .. "-name.limit-providing" },
+                  tooltip = {
+                    script.mod_name .. "-description.limit",
+                    { script.mod_name .. "-description.limit-providing" },
+                  },
+                  handlers = {
+                    [defines.events.on_gui_checked_state_changed] = on_group_parameters_changed,
+                  },
+                },
+                {
+                  type = "empty-widget",
+                  style_mods = { horizontally_stretchable = true },
+                },
+                {
+                  type = "sprite",
+                  name = "unloading_status",
+                  style = "status_image",
+                  resize_to_sprite = false,
+                },
               },
             },
             {
@@ -252,6 +306,13 @@ function space_platform_gui.update(player_index, platform_index)
     local unload_value = group.unload_limit or 1
     guis.unloading_slider.slider_value = unload_value
     guis.unloading_text.text = tostring(unload_value)
+
+    local load_status = platform_data.get_logistic_status(group, platform_index, "load_limit")
+    guis.loading_status.sprite = "utility/status_" .. load_status
+    guis.loading_status.tooltip = { script.mod_name .. "-description." .. load_status }
+    local unload_status = platform_data.get_logistic_status(group, platform_index, "unload_limit")
+    guis.unloading_status.sprite = "utility/status_" .. unload_status
+    guis.unloading_status.tooltip = { script.mod_name .. "-description." .. unload_status }
 
     platform_data.manage_logistics_providers(group)
   end
