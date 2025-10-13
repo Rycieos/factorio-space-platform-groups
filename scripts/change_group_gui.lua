@@ -2,6 +2,7 @@ local const = require("const")
 local gui_lib = require("scripts.gui_lib")
 local platform_data = require("scripts.platform_data")
 local player_data = require("scripts.player_data")
+local search = require("scripts.search")
 
 local change_group_gui = {}
 
@@ -130,6 +131,12 @@ local function on_list_item_click(event)
   button.toggled = true
 end
 
+---@param event EventData.on_gui_text_changed
+local function on_search_box_text_changed(event)
+  local guis = player_data(event.player_index).change_group_guis
+  search.update_search_results(guis)
+end
+
 -- Build a popup GUI for selecting a group.
 ---@param player LuaPlayer
 ---@param cursor_location GuiLocation
@@ -198,6 +205,9 @@ function change_group_gui.build(player, cursor_location, selected_group)
             name = "search_box",
             style = "search_popup_textfield",
             visible = false,
+            handlers = {
+              [defines.events.on_gui_text_changed] = on_search_box_text_changed,
+            },
           },
           {
             type = "sprite-button",
@@ -279,6 +289,9 @@ function change_group_gui.build(player, cursor_location, selected_group)
                 horizontally_stretchable = true,
               },
               caption = const.no_group,
+              tags = {
+                ignored_by_search = true,
+              },
               handlers = {
                 [defines.events.on_gui_click] = on_list_item_click,
               },

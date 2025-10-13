@@ -5,7 +5,7 @@
   "author": "rycieos",
   "factorio_version": "2.0",
   "dependencies": [
-      "? base >= 2.0.58"
+      "? base >= 2.0.55"
   ],
   "description": "Adds space platform group functionality like train groups.",
   "homepage": "https://github.com/Rycieos/factorio-space-platform-groups",
