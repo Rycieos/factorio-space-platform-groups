@@ -231,7 +231,7 @@ end
 ---@param from_platform LuaSpacePlatform
 function platform_data.sync_schedule_from(from_platform)
   local group = platform_data.get_group_of_platform(from_platform.force.index, from_platform.index)
-  if group then
+  if group and group.platform_count > 1 then
     local to_platforms = {}
     for platform_index, _ in pairs(group.platforms) do
       table.insert(to_platforms, from_platform.force.platforms[platform_index])
