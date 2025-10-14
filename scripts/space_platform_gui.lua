@@ -54,6 +54,7 @@ local function on_group_parameters_changed(event)
   group.load_limit = guis.loading_checkbox.state and tonumber(guis.loading_text.text) or nil
   group.unload_limit = guis.unloading_checkbox.state and tonumber(guis.unloading_text.text) or nil
 
+  platform_data.manage_logistics_providers(group)
   space_platform_gui.update(player.index, data.platform_index)
 end
 
@@ -313,8 +314,6 @@ function space_platform_gui.update(player_index, platform_index)
     local unload_status = platform_data.get_logistic_status(group, platform_index, "unload_limit")
     guis.unloading_status.sprite = "utility/status_" .. unload_status
     guis.unloading_status.tooltip = { script.mod_name .. "-description." .. unload_status }
-
-    platform_data.manage_logistics_providers(group)
   end
 end
 

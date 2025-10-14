@@ -5,7 +5,7 @@ local platform_data = require("scripts.platform_data")
 require("scripts.space_platform_gui")
 
 script.on_init(function()
-  ---@type { [uint32]: PlatformData }
+  ---@type { [uint32]: PlatformGroupData }
   storage.force_data = {}
   ---@type { [uint32]: PlayerData }
   storage.player_data = {}

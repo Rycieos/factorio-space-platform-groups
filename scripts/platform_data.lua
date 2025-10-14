@@ -1,25 +1,31 @@
 local logistics_provider = require("scripts.logistics_provider")
-local queue = require("scripts.queue")
 local schedule = require("scripts.schedule")
 
 local platform_data = {}
 
+---@class PlatformData
+---@field group PlatformGroup
+---@field platform_index uint32
+---@field location string?
+---@field ticks_in_station uint64
+---@field location_queue_index? uint32
+---@field location_queue_size? uint32
+
 ---@class (exact) PlatformGroup
 ---@field name string
 ---@field force uint32
----@field platforms { [uint32]: string } Mapping of platform_index to recorded space_location.
+---@field platforms { [uint32]: PlatformData }
 ---@field platform_count uint32
 ---@field load_limit? uint8
 ---@field unload_limit? uint8
----@field space_location_queues { [string]: Queue<uint32> }
 
----@class (exact) PlatformData
+---@class (exact) PlatformGroupData
 ---@field groups { [string]: PlatformGroup }
 ---@field platforms { [uint32]: PlatformGroup }
 
--- Get the PlatformData storage table for the specified Force.
+-- Get the PlatformGroupData storage table for the specified Force.
 ---@param force_index uint32
----@return PlatformData
+---@return PlatformGroupData
 ---@nodiscard
 local function raw(force_index)
   if not storage.force_data[force_index] then
@@ -94,21 +100,6 @@ function platform_data.delete_group(force_index, group_name)
   end
 end
 
--- Add a platform to the queue of the location it is in, if not already in the queue.
----@param group PlatformGroup
----@param platform_index uint32
-local function remove_platform_from_queue(group, platform_index)
-  if group.platforms[platform_index] ~= "" then
-    local location_queue = platform_data.get_location_queue(group, group.platforms[platform_index])
-    local index = queue.find(location_queue, platform_index)
-    if index > 0 then
-      queue.remove(location_queue, index)
-    end
-    group.platforms[platform_index] = ""
-    platform_data.manage_logistics_providers(group)
-  end
-end
-
 -- Remove a platform from any group it is in.
 ---@param force_index uint32
 ---@param platform_index uint32
@@ -116,28 +107,16 @@ function platform_data.remove_platform(force_index, platform_index)
   local data = raw(force_index)
   local group = data.platforms[platform_index]
   if group then
-    remove_platform_from_queue(group, platform_index)
+    if group.platforms[platform_index].location ~= nil then
+      group.platforms[platform_index].location = nil
+      platform_data.manage_logistics_providers(group)
+    end
     data.platforms[platform_index] = nil
     group.platforms[platform_index] = nil
     group.platform_count = group.platform_count - 1
     if group.platform_count == 0 then
       platform_data.delete_group(force_index, group.name)
     end
-  end
-end
-
--- Add a platform to the queue of the location it is in, if not already in the queue.
----@param group PlatformGroup
----@param platform LuaSpacePlatform
-local function add_platform_to_queue(group, platform)
-  if platform.space_location then
-    local location_name = platform.space_location.name
-    if location_name ~= group.platforms[platform.index] then
-      group.platforms[platform.index] = location_name
-      local location_queue = platform_data.get_location_queue(group, location_name)
-      queue.push(location_queue, platform.index)
-    end
-    platform_data.manage_logistics_providers(group)
   end
 end
 
@@ -153,7 +132,11 @@ function platform_data.add_platform_to_group(force_index, group_name, platform_i
   local group = get_or_create_group(force_index, group_name)
   local platforms = raw(force_index).platforms
   platforms[platform_index] = group
-  group.platforms[platform_index] = ""
+  group.platforms[platform_index] = {
+    group = group,
+    platform_index = platform_index,
+    ticks_in_station = 0,
+  }
   group.platform_count = group.platform_count + 1
 
   local force = game.forces[force_index]
@@ -161,7 +144,10 @@ function platform_data.add_platform_to_group(force_index, group_name, platform_i
     local platform = force.platforms[platform_index]
     if platform then
       platform_data.sync_schedule_to(platform)
-      add_platform_to_queue(group, platform)
+      if platform.space_location then
+        group.platforms[platform_index].location = platform.space_location.name
+        platform_data.manage_logistics_providers(group)
+      end
     end
   end
   return group
@@ -176,29 +162,37 @@ function platform_data.get_group_of_platform(force_index, platform_index)
   return raw(force_index).platforms[platform_index]
 end
 
--- Get a group's location queue for a location.
----@param group PlatformGroup
----@param space_location string
-function platform_data.get_location_queue(group, space_location)
-  if not group.space_location_queues[space_location] then
-    group.space_location_queues[space_location] = queue.new()
-  end
-  return group.space_location_queues[space_location]
-end
-
 -- Update logistics providers on all platforms in this group.
 ---@param group PlatformGroup
 function platform_data.manage_logistics_providers(group)
-  for platform_index, location in pairs(group.platforms) do
-    if location == "" then
+  ---@type table<string, PlatformData[]>
+  local location_queues = {}
+  for platform_index, data in pairs(group.platforms) do
+    if data.location == nil then
+      data.location_queue_index = nil
+      data.location_queue_size = nil
       logistics_provider.set_state(group.force, platform_index, true, true)
+    else
+      local platform = ((game.forces[group.force] or {}).platforms or {})[platform_index]
+      if platform then
+        data.ticks_in_station = platform.get_schedule().ticks_in_station
+      end
+      if not location_queues[data.location] then
+        location_queues[data.location] = {}
+      end
+      table.insert(location_queues[data.location], data)
     end
   end
-  for _, location_queue in pairs(group.space_location_queues) do
-    for index, platform_index in queue.iter(location_queue) do
+  for _, location_queue in pairs(location_queues) do
+    table.sort(location_queue, function(a, b)
+      return a.ticks_in_station > b.ticks_in_station
+    end)
+    for index, platform in ipairs(location_queue) do
+      platform.location_queue_index = index
+      platform.location_queue_size = #location_queue
       logistics_provider.set_state(
         group.force,
-        platform_index,
+        platform.platform_index,
         not group.unload_limit or index <= group.unload_limit,
         not group.load_limit or index <= group.load_limit
       )
@@ -212,14 +206,13 @@ end
 ---@return string
 function platform_data.get_logistic_status(group, platform_index, type)
   if group[type] then
-    local platform_location = group.platforms[platform_index]
-    if platform_location == "" then
+    local platform = group.platforms[platform_index]
+    if platform.location == nil then
       return "blue"
     end
-    local location_queue = platform_data.get_location_queue(group, platform_location)
-    if queue.size(location_queue) <= group[type] then
+    if platform.location_queue_size <= group[type] then
       return "working"
-    elseif queue.find(location_queue, platform_index) <= group[type] then
+    elseif platform.location_queue_index <= group[type] then
       return "yellow"
     else
       return "not_working"
@@ -278,15 +271,17 @@ function platform_data.on_space_platform_changed_state(event)
 
   -- While in state waiting_for_departure, a platform can still automatically drop requests.
 
-  if group.platforms[platform.index] ~= "" then
-    remove_platform_from_queue(group, platform.index)
-  end
-  if platform.space_location then
-    add_platform_to_queue(group, platform)
-  end
+  -- We do not want to limit a paused platform. Not only does the game not track
+  -- how long they are at a planet, but it is unintuitive that a paused platform
+  -- would take up limit slots.
+  local new_location = (platform.space_location and not platform.paused) and platform.space_location.name or nil
+  if group.platforms[platform.index].location ~= new_location then
+    group.platforms[platform.index].location = new_location
+    platform_data.manage_logistics_providers(group)
 
-  for _, player in pairs(platform.force.players) do
-    space_platform_gui.update(player.index, platform.index)
+    for _, player in pairs(platform.force.players) do
+      space_platform_gui.update(player.index, platform.index)
+    end
   end
 end
 
