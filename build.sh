@@ -12,6 +12,7 @@ mkdir -p "$dir"
 cp -r \
   ./changelog.txt \
   ./info.json \
+  ./thumbnail.png \
   ./*.lua \
   prototypes \
   scripts \
