@@ -272,8 +272,7 @@ function space_platform_gui.update(player_index, platform_index)
   local opened = player.opened
   if
     not opened
-    or not opened.object_name == "LuaEntity"
-    or not opened.surface
+    or opened.object_name ~= "LuaEntity"
     or not opened.surface.platform
     or opened.surface.platform.index ~= platform_index
   then
