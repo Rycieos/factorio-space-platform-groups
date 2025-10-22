@@ -303,11 +303,13 @@ function change_group_gui.build(player, cursor_location, selected_group)
   }, data.change_group_guis)
 
   data.change_group_guis.group_name_box.focus()
+  data.change_group_guis.group_name_box.select_all()
 
   local groups_list_box = data.change_group_guis.groups_list
   local groups = platform_data.get_groups(player.force.index)
   for i, group in pairs(groups) do
-    gui_lib.add(groups_list_box, {
+    local toggled = selected_group and group.name == selected_group
+    local _, element = gui_lib.add(groups_list_box, {
       type = "button",
       name = "group_button_" .. i,
       style = "list_box_item",
@@ -315,6 +317,7 @@ function change_group_gui.build(player, cursor_location, selected_group)
         horizontally_stretchable = true,
       },
       caption = group.name,
+      toggled = toggled,
       handlers = {
         [defines.events.on_gui_click] = on_list_item_click,
       },
@@ -332,6 +335,9 @@ function change_group_gui.build(player, cursor_location, selected_group)
         },
       },
     })
+    if toggled then
+      groups_list_box.scroll_to_element(element, "top-third")
+    end
   end
 end
 
