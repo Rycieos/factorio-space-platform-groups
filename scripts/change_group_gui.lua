@@ -325,7 +325,7 @@ function change_group_gui.build(player, cursor_location, selected_group)
         type = "flow",
         direction = "vertical",
         style_mods = {
-          natural_width = 354,
+          natural_width = 342,
           horizontal_align = "right",
         },
         ignored_by_interaction = true,
