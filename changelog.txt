@@ -1,4 +1,13 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.3
+Date: 2025-10-22
+  Minor Features:
+    - Show selected group as already toggled.
+
+  Bugfixes:
+    - Fix group membership count overlapping scrollbar.
+
+---------------------------------------------------------------------------------------------------
 Version: 0.1.2
 Date: 2025-10-20
   Bugfixes:
