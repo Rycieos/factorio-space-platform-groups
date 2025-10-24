@@ -272,7 +272,9 @@ function space_platform_gui.update(player_index, platform_index)
   local opened = player.opened
   if
     not opened
+    or not opened.valid
     or opened.object_name ~= "LuaEntity"
+    or opened.type ~= "space-platform-hub"
     or not opened.surface.platform
     or opened.surface.platform.index ~= platform_index
   then
@@ -280,6 +282,10 @@ function space_platform_gui.update(player_index, platform_index)
   end
 
   local guis = player_data(player.index).hub_guis
+  if not space_platform_gui.valid(guis) then
+    return
+  end
+
   local group = platform_data.get_group_of_platform(player.force.index, platform_index)
   if group == nil then
     guis.group_label.caption = const.no_group
