@@ -24,11 +24,6 @@ Features include:
 
 This mod has not been extensively tested, so please report any issues.
 
-#### Known issues:
-
-* Until [this bug](https://forums.factorio.com/viewtopic.php?t=131263) is
-  fixed, limiting unloading does nothing.
-
 ### Uninstallation
 
 The group membership data is stored locally to this mod, and so obviously is
