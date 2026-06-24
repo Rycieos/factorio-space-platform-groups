@@ -20,10 +20,6 @@ Features include:
 
 ![Thumbnail](https://raw.githubusercontent.com/Rycieos/factorio-space-platform-groups/main/thumbnail.png)
 
-### Experimental
-
-This mod has not been extensively tested, so please report any issues.
-
 ### Uninstallation
 
 The group membership data is stored locally to this mod, and so obviously is
